@@ -1,0 +1,43 @@
+{
+	"name": "companion-module-vra-core",
+	"version": "0.1.0",
+	"description": "Bitfocus Companion module for the VRA Core API v2",
+	"main": "dist/main.js",
+	"type": "module",
+	"scripts": {
+		"format": "prettier -w .",
+		"package": "run build && companion-module-build",
+		"build": "rimraf dist && run build:main",
+		"build:main": "tsc -p tsconfig.build.json",
+		"dev": "tsc -p tsconfig.build.json --watch",
+		"typecheck": "tsc -p tsconfig.json --noEmit",
+		"lint:raw": "eslint",
+		"lint": "run lint:raw ."
+	},
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/vra-bv/companion-module-vra-core.git"
+	},
+	"bugs": {
+		"url": "https://github.com/vra-bv/companion-module-vra-core/issues"
+	},
+	"engines": {
+		"node": "^22.20",
+		"yarn": "^4"
+	},
+	"dependencies": {
+		"@companion-module/base": "~2.1.3"
+	},
+	"devDependencies": {
+		"@companion-module/tools": "^3.1.0",
+		"@types/node": "^22.19.17",
+		"eslint": "^9.39.4",
+		"prettier": "^3.8.3",
+		"rimraf": "^6.1.3",
+		"typescript": "~6.0.3",
+		"typescript-eslint": "^8.59.0"
+	},
+	"prettier": "@companion-module/tools/.prettierrc.json",
+	"packageManager": "yarn@4.17.0"
+}
