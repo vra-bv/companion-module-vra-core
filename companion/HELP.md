@@ -19,12 +19,12 @@ No token is needed when Companion runs on the Core machine itself, or when **Acc
 
 ### Connection status
 
-| Status | Meaning |
-| --- | --- |
-| OK | Connected. The status text shows the device name and its access. |
-| Authentication failure | The Core refused the token (`401`): wrong, revoked, or used from another address than the device's fixed IP. |
-| Insufficient permissions | The Core API or the System feature is switched off for the studio, or the device may not use it (`403`). |
-| Connection failure | No answer from the Core: check the address, the port and the network. |
+| Status                   | Meaning                                                                                                      |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| OK                       | Connected. The status text shows the device name and its access.                                             |
+| Authentication failure   | The Core refused the token (`401`): wrong, revoked, or used from another address than the device's fixed IP. |
+| Insufficient permissions | The Core API or the System feature is switched off for the studio, or the device may not use it (`403`).     |
+| Connection failure       | No answer from the Core: check the address, the port and the network.                                        |
 
 ### Actions
 
@@ -46,17 +46,17 @@ Core active · Studio on air / recording / off air · Signal active · Camera on
 
 ### Variables
 
-| Variable | Value |
-| --- | --- |
-| `core_state` | `ACTIVE`, `DEACTIVATED`, `STARTING`, … |
-| `studio_status` | `onair`, `recording`, `offair` |
-| `station_name` | The station on the studio |
-| `program_title` | The program on air |
-| `signal_<identifier>` | The signal's value (`audio-director` becomes `signal_audio_director`) |
-| `camera_<n>_onair` | `true` / `false`, empty when the Core cannot tell |
-| `output_<slot>_status` | `starting`, `on_air`, `dormant`, `fault`, `offline` |
-| `output_<slot>_scene` | Key of the scene on air |
-| `var_<name>` | The station variable's value (`TRUE` / `FALSE` for BOOLEAN) |
+| Variable               | Value                                                                 |
+| ---------------------- | --------------------------------------------------------------------- |
+| `core_state`           | `ACTIVE`, `DEACTIVATED`, `STARTING`, …                                |
+| `studio_status`        | `onair`, `recording`, `offair`                                        |
+| `station_name`         | The station on the studio                                             |
+| `program_title`        | The program on air                                                    |
+| `signal_<identifier>`  | The signal's value (`audio-director` becomes `signal_audio_director`) |
+| `camera_<n>_onair`     | `true` / `false`, empty when the Core cannot tell                     |
+| `output_<slot>_status` | `starting`, `on_air`, `dormant`, `fault`, `offline`                   |
+| `output_<slot>_scene`  | Key of the scene on air                                               |
+| `var_<name>`           | The station variable's value (`TRUE` / `FALSE` for BOOLEAN)           |
 
 ### Presets
 

@@ -11,6 +11,7 @@ import {
 	macroChoices,
 	signalChoices,
 	slotChoices,
+	text,
 	variableChoices,
 } from './actions.js'
 import type VraCoreInstance from './main.js'
@@ -41,8 +42,6 @@ export const Colors = {
 	active: combineRgb(0, 120, 200),
 	amber: combineRgb(230, 170, 0),
 } as const
-
-const text = (value: unknown): string => (value === undefined || value === null ? '' : String(value).trim())
 
 export function UpdateFeedbacks(self: VraCoreInstance): void {
 	const model = self.model

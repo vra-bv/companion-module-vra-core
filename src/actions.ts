@@ -99,8 +99,16 @@ const ON_OFF_TOGGLE: DropdownChoice<string>[] = [
 	{ id: 'toggle', label: 'Toggle' },
 ]
 
-/** Option values may come from expressions; read them as trimmed text. */
-const text = (value: unknown): string => (value === undefined || value === null ? '' : String(value).trim())
+/**
+ * Option values may come from expressions; read them as trimmed text. Scalars are stringified, anything else
+ * (an expression that produced an object or a list) reads as its JSON.
+ */
+export const text = (value: unknown): string => {
+	if (value === undefined || value === null) return ''
+	if (typeof value === 'string') return value.trim()
+	if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+	return JSON.stringify(value)
+}
 
 /** An optional query argument: left out of the URL when empty. */
 const optional = (value: unknown): string | undefined => text(value) || undefined

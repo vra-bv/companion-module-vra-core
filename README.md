@@ -29,17 +29,17 @@ To load the module in Companion during development, point Companion's **Develope
 
 ### Layout
 
-| File | Purpose |
-| --- | --- |
-| `src/main.ts` | The instance: connection check, poll loop, definitions, `runControl` |
-| `src/api.ts` | Typed `fetch` client with the 3 s bound and the API's error codes |
-| `src/state.ts` | Snapshot types, the normalised model and the lookups (ids exact, names case-insensitive) |
-| `src/config.ts` | Connection settings and the token secret |
-| `src/actions.ts` | Actions and the dropdown choices shared with the feedbacks |
-| `src/feedbacks.ts` | Boolean feedbacks and the tally colours |
-| `src/variables.ts` | Variable layout and values |
-| `src/presets.ts` | Presets generated from the snapshot |
-| `src/upgrades.ts` | Upgrade scripts (none yet) |
+| File               | Purpose                                                                                  |
+| ------------------ | ---------------------------------------------------------------------------------------- |
+| `src/main.ts`      | The instance: connection check, poll loop, definitions, `runControl`                     |
+| `src/api.ts`       | Typed `fetch` client with the 3 s bound and the API's error codes                        |
+| `src/state.ts`     | Snapshot types, the normalised model and the lookups (ids exact, names case-insensitive) |
+| `src/config.ts`    | Connection settings and the token secret                                                 |
+| `src/actions.ts`   | Actions and the dropdown choices shared with the feedbacks                               |
+| `src/feedbacks.ts` | Boolean feedbacks and the tally colours                                                  |
+| `src/variables.ts` | Variable layout and values                                                               |
+| `src/presets.ts`   | Presets generated from the snapshot                                                      |
+| `src/upgrades.ts`  | Upgrade scripts (none yet)                                                               |
 
 ## License
 
