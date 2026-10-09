@@ -16,7 +16,7 @@ import { isBooleanVariable } from './actions.js'
 import { Colors } from './feedbacks.js'
 import type VraCoreInstance from './main.js'
 import type { ModuleSchema } from './main.js'
-import { isSwitchableSignal, outputKey } from './state.js'
+import { cameraName, isSwitchableSignal, outputKey } from './state.js'
 import { variableIdPart, type VariableLayout } from './variables.js'
 
 type Presets = CompanionPresetDefinitions<ModuleSchema>
@@ -145,12 +145,13 @@ export function UpdatePresets(self: VraCoreInstance, layout: VariableLayout): vo
 	const cameraIds: string[] = []
 	for (const camera of model.cameras) {
 		const id = `camera_${variableIdPart(camera.id)}`
-		const key = String(camera.number)
+		const key = camera.id
+		const name = cameraName(camera)
 		presets[id] = {
 			type: 'simple',
-			name: `Camera ${camera.number} ${camera.name}: cut`,
-			keywords: ['camera', 'tally', camera.name],
-			style: style(`CAM ${camera.number}\\n${short(camera.name)}`, '14'),
+			name: `Camera ${camera.number} ${name}: cut`,
+			keywords: ['camera', 'tally', name],
+			style: style(`CAM ${camera.number}\\n${short(name)}`, '14'),
 			steps: [{ down: [{ actionId: 'camera_cut', options: { camera: key } }], up: [] }],
 			// Program is listed last so it wins when the switcher reports a camera on both buses.
 			feedbacks: [

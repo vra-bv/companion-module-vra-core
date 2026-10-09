@@ -11,7 +11,7 @@
 import type { DropdownChoice } from '@companion-module/base'
 import { seg, type Query } from './api.js'
 import type VraCoreInstance from './main.js'
-import { isSwitchableSignal, outputKey, type CoreModel } from './state.js'
+import { cameraName, isSwitchableSignal, outputKey, type CoreModel } from './state.js'
 
 export type ActionsSchema = {
 	core_control: { options: { command: string } }
@@ -45,9 +45,12 @@ export function macroChoices(model: CoreModel): DropdownChoice<string>[] {
 	return model.macros.map((m) => ({ id: m.name, label: m.enabled ? m.name : `${m.name} (disabled)` }))
 }
 
-/** Cameras by number (`2` is "camera 2" on a panel); a name or id typed in works too. */
+/**
+ * Cameras by id, so a button keeps its camera when one is added or removed before it (the number is the list
+ * position). A number or name typed in works too.
+ */
 export function cameraChoices(model: CoreModel): DropdownChoice<string>[] {
-	return model.cameras.map((c) => ({ id: String(c.number), label: `${c.number} · ${c.name}` }))
+	return model.cameras.map((c) => ({ id: c.id, label: `${c.number} · ${cameraName(c)}` }))
 }
 
 /**
@@ -58,7 +61,10 @@ export function angleChoices(model: CoreModel): DropdownChoice<string>[] {
 	const choices: DropdownChoice<string>[] = []
 	for (const camera of model.cameras) {
 		for (const angle of model.angles.get(camera.id) ?? []) {
-			choices.push({ id: `${camera.id}::${angle.id}`, label: `${camera.number} · ${camera.name} — ${angle.name}` })
+			choices.push({
+				id: `${camera.id}::${angle.id}`,
+				label: `${camera.number} · ${cameraName(camera)} — ${angle.name ?? angle.id}`,
+			})
 		}
 	}
 	return choices
@@ -303,7 +309,7 @@ export function UpdateActions(self: VraCoreInstance): void {
 					choices: cameras,
 					default: firstId(cameras),
 					allowCustom: true,
-					tooltip: 'Camera number, name or id',
+					tooltip: 'Camera id, name or number',
 				},
 			],
 			callback: async (event) => {
@@ -322,7 +328,7 @@ export function UpdateActions(self: VraCoreInstance): void {
 					choices: cameras,
 					default: firstId(cameras),
 					allowCustom: true,
-					tooltip: 'Camera number, name or id',
+					tooltip: 'Camera id, name or number',
 				},
 			],
 			callback: async (event) => {
@@ -342,7 +348,7 @@ export function UpdateActions(self: VraCoreInstance): void {
 					choices: angles,
 					default: firstId(angles),
 					allowCustom: true,
-					tooltip: 'Type <camera>/<angle> (number or name), or an angle name that only one camera has',
+					tooltip: 'Type <camera>/<angle> (id, name or number), or an angle name that only one camera has',
 				},
 			],
 			callback: async (event) => {

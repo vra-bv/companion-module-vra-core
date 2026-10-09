@@ -21,7 +21,7 @@ import {
 	type CompanionVariableValues,
 	type SomeCompanionConfigField,
 } from '@companion-module/base'
-import { CoreApiClient, type ApiResult, type Query } from './api.js'
+import { CoreApiClient, SLOW_CONTROL_ACK_TIMEOUT_MS, type ApiResult, type Query } from './api.js'
 import { UpdateActions, type ActionsSchema } from './actions.js'
 import { GetConfigFields, normaliseConfig, type ModuleConfig, type ModuleSecrets } from './config.js'
 import { UpdateFeedbacks, type FeedbacksSchema } from './feedbacks.js'
@@ -102,7 +102,9 @@ export default class VraCoreInstance extends InstanceBase<ModuleSchema> {
 			return false
 		}
 
-		const result = await client.control(path, { ...query, station: this.config.station || undefined })
+		// Variable writes go through VRA Cloud and camera commands through Camera Assist: both may need longer.
+		const ackTimeout = /^\/(variables|cameras|angles)\//.test(path) ? SLOW_CONTROL_ACK_TIMEOUT_MS : undefined
+		const result = await client.control(path, { ...query, station: this.config.station || undefined }, ackTimeout)
 		if (result.ok) {
 			this.log('debug', `${label}: ok (${result.status})`)
 			this.#refreshSoon()
@@ -198,7 +200,18 @@ export default class VraCoreInstance extends InstanceBase<ModuleSchema> {
 			this.#connected = true
 			this.#lastFailure = null
 			this.updateStatus(InstanceStatus.Ok, principal?.access === 'read' ? `${who}: read only` : who)
-			this.log('info', `Connected to ${client.baseUrl} as ${who}, Core ${result.body.version ?? 'unknown version'}`)
+			this.log('info', `Connected to ${client.baseUrl} as ${who}, Core ${result.body.version}`)
+			// The Core ignores the token from the Core machine itself, and lets an unknown token fall through to LAN
+			// access: say so, or a wrong token goes unnoticed until the module runs elsewhere.
+			if (this.#token !== undefined && principal !== null && principal.kind !== 'device') {
+				this.log(
+					'warn',
+					`The device token was not used: the Core let Companion in as ${principal.kind} (${principal.name}). ` +
+						(principal.kind === 'loopback'
+							? 'Calls from the Core machine itself need no token.'
+							: 'Check the token: an unknown token falls back to LAN access.'),
+				)
+			}
 			return
 		}
 
@@ -231,8 +244,9 @@ export default class VraCoreInstance extends InstanceBase<ModuleSchema> {
 			await this.#loadDetails(client, model)
 			if (generation !== this.#generation) return
 			this.model = model
-			this.#structure = structure
+			// Only marked as built once the definitions are in: a builder that throws is retried on the next poll.
 			this.#defineAll()
+			this.#structure = structure
 		} else {
 			this.model = model
 		}
@@ -247,7 +261,7 @@ export default class VraCoreInstance extends InstanceBase<ModuleSchema> {
 		if (model.available.cameras) {
 			const cameras = await client.cameras()
 			if (cameras.ok) {
-				model.angles = new Map((cameras.body.items ?? []).map((c) => [c.id, c.angles ?? []]))
+				model.angles = new Map(listOf(cameras.body.items).map((c) => [c.id, listOf(c.angles)]))
 			} else {
 				this.log('debug', `camera angles not read: ${describeFailure(cameras)}`)
 			}
@@ -255,7 +269,7 @@ export default class VraCoreInstance extends InstanceBase<ModuleSchema> {
 		if (model.available.variables) {
 			const variables = await client.variables()
 			if (variables.ok) {
-				model.variableDetails = new Map((variables.body.items ?? []).map((v) => [v.id, v]))
+				model.variableDetails = new Map(listOf(variables.body.items).map((v) => [v.id, v]))
 			} else {
 				this.log('debug', `variable details not read: ${describeFailure(variables)}`)
 			}
@@ -289,7 +303,7 @@ export default class VraCoreInstance extends InstanceBase<ModuleSchema> {
 		}
 
 		if (first) {
-			this.updateStatus(status, result.message)
+			this.updateStatus(status, statusMessage(result))
 			this.log(lost ? 'warn' : 'info', `${this.#client?.baseUrl ?? 'Core'}: ${text}`)
 		}
 	}
@@ -319,6 +333,20 @@ export default class VraCoreInstance extends InstanceBase<ModuleSchema> {
 	#clearModel(): void {
 		this.model = { ...emptyModel(), angles: this.model.angles, variableDetails: this.model.variableDetails }
 	}
+}
+
+/** A list the Core should always send; anything else reads as empty. */
+function listOf<T>(value: T[] | null | undefined): T[] {
+	return Array.isArray(value) ? value : []
+}
+
+/** The status text for a failed probe or poll: what the user should check. */
+function statusMessage(result: Extract<ApiResult<unknown>, { ok: false }>): string {
+	if (result.status === 403 && result.error === 'feature_disabled')
+		return `${result.message} (Studio settings → Core API: switch on the API and the System feature)`
+	if (result.status === 403 && result.error === 'forbidden')
+		return `${result.message} (the device needs the System feature: Studio settings → Core API → Devices)`
+	return result.message
 }
 
 function describeFailure(result: Extract<ApiResult<unknown>, { ok: false }>): string {

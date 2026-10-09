@@ -1,7 +1,8 @@
 /**
  * A small typed client for the VRA Core API v2 (`http://{core}:{port}/api/v2`).
  *
- * - `fetch` with a hard 3 s bound per request; no other dependencies.
+ * - `fetch` with a hard bound per request (3 s for reads, the control route's ack wait plus a margin for actions);
+ *   no other dependencies.
  * - The device token goes out as `Authorization: Bearer <token>`, and only when one is configured: without it the
  *   Core lets the caller in by address (loopback, or LAN access when the studio switched it on).
  * - Calls never throw. They answer an {@link ApiResult}, so the poll loop and the actions can tell a refusal
@@ -10,15 +11,27 @@
 
 import type { ApiInfo, CameraDetail, StateSnapshot, VariableDetail } from './state.js'
 
-/** Bound of every request. Companion buttons should feel instant; a Core that needs longer is reported as down. */
+/** Bound of a read. Companion buttons should feel instant; a Core that needs longer is reported as down. */
 export const REQUEST_TIMEOUT_MS = 3000
 
 /**
- * The acknowledgement wait the Core may use on a control route (`?timeout=`). It stays below
- * {@link REQUEST_TIMEOUT_MS} so the Core answers `504 timeout` itself instead of the request being cut off without an
- * answer. Signal, studio and output commands carry their own 2 s bounds; camera commands would otherwise wait 5 s.
+ * The acknowledgement wait the Core may use on a control route (`?timeout=`, clamped by the Core to 100…30000 ms).
+ * Signal, studio and output commands carry their own 2 s bounds inside it; macros ignore it.
  */
 export const CONTROL_ACK_TIMEOUT_MS = 2500
+
+/**
+ * The longer wait for variable writes (a VRA Cloud mutation plus up to 2 s for the confirmation) and camera commands
+ * (Camera Assist answers within 1 s, 3 s when its local bus leg is down). With 2.5 s a slow but successful write would
+ * be reported as `504 timeout`. It stays under 3 s so a button still answers within 3 s.
+ */
+export const SLOW_CONTROL_ACK_TIMEOUT_MS = 2900
+
+/**
+ * Added to the ack wait for the request bound, so the Core's own `504 timeout` (with its error code) arrives before
+ * the request is cut off without an answer.
+ */
+const CONTROL_MARGIN_MS = 500
 
 export interface ApiClientOptions {
 	host: string
@@ -74,24 +87,38 @@ export class CoreApiClient {
 	}
 
 	/** `GET /api/v2/cameras`: the cameras with their angles. */
-	async cameras(): Promise<ApiResult<{ items: CameraDetail[] | null }>> {
-		return this.request<{ items: CameraDetail[] | null }>('GET', '/cameras')
+	async cameras(): Promise<ApiResult<{ items: CameraDetail[] }>> {
+		return this.request<{ items: CameraDetail[] }>('GET', '/cameras')
 	}
 
 	/** `GET /api/v2/variables`: the station's variables with their types. */
-	async variables(): Promise<ApiResult<{ items: VariableDetail[] | null }>> {
-		return this.request<{ items: VariableDetail[] | null }>('GET', '/variables')
+	async variables(): Promise<ApiResult<{ items: VariableDetail[] }>> {
+		return this.request<{ items: VariableDetail[] }>('GET', '/variables')
 	}
 
 	/**
 	 * Calls a control route with POST (the Core accepts GET and POST on every control path; arguments stay in the
 	 * path and query, never in a body). `path` is relative to `/api/v2` and starts with `/`.
 	 */
-	async control(path: string, query: Query = {}): Promise<ApiResult<Record<string, unknown>>> {
-		return this.request<Record<string, unknown>>('POST', path, { timeout: CONTROL_ACK_TIMEOUT_MS, ...query })
+	async control(
+		path: string,
+		query: Query = {},
+		ackTimeoutMs: number = CONTROL_ACK_TIMEOUT_MS,
+	): Promise<ApiResult<Record<string, unknown>>> {
+		return this.request<Record<string, unknown>>(
+			'POST',
+			path,
+			{ timeout: ackTimeoutMs, ...query },
+			ackTimeoutMs + CONTROL_MARGIN_MS,
+		)
 	}
 
-	async request<T>(method: 'GET' | 'POST', path: string, query: Query = {}): Promise<ApiResult<T>> {
+	async request<T>(
+		method: 'GET' | 'POST',
+		path: string,
+		query: Query = {},
+		boundMs: number = REQUEST_TIMEOUT_MS,
+	): Promise<ApiResult<T>> {
 		const url = new URL(this.#base + path)
 		for (const [key, value] of Object.entries(query)) {
 			if (value === undefined) continue
@@ -103,14 +130,14 @@ export class CoreApiClient {
 
 		let response: Response
 		try {
-			response = await fetch(url, { method, headers, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) })
+			response = await fetch(url, { method, headers, signal: AbortSignal.timeout(boundMs) })
 		} catch (err) {
 			const timedOut = err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError')
 			return {
 				ok: false,
 				status: 0,
 				error: timedOut ? 'timeout' : 'network',
-				message: timedOut ? `no answer within ${REQUEST_TIMEOUT_MS} ms` : describeNetworkError(err),
+				message: timedOut ? `no answer within ${boundMs} ms` : describeNetworkError(err),
 			}
 		}
 

@@ -15,7 +15,7 @@ import {
 	variableChoices,
 } from './actions.js'
 import type VraCoreInstance from './main.js'
-import { findCamera, findMacro, findOutput, findSignal, findVariable, isVariableTrue } from './state.js'
+import { findCamera, findMacro, findOutput, findSignal, findVariable, isVariableTrue, studioStatus } from './state.js'
 
 export type FeedbacksSchema = {
 	core_active: { type: 'boolean'; options: Record<string, never> }
@@ -67,7 +67,7 @@ export function UpdateFeedbacks(self: VraCoreInstance): void {
 			name: 'Studio: on air',
 			defaultStyle: { bgcolor: Colors.onAir, color: Colors.white },
 			options: [],
-			callback: () => self.model.studio?.status === 'onair',
+			callback: () => studioStatus(self.model.studio) === 'onair',
 		},
 
 		studio_recording: {
@@ -75,15 +75,16 @@ export function UpdateFeedbacks(self: VraCoreInstance): void {
 			name: 'Studio: recording',
 			defaultStyle: { bgcolor: Colors.recording, color: Colors.white },
 			options: [],
-			callback: () => self.model.studio?.status === 'recording',
+			callback: () => studioStatus(self.model.studio) === 'recording',
 		},
 
 		studio_offair: {
 			type: 'boolean',
 			name: 'Studio: off air',
+			description: 'True while the studio is off air. False while the Core does not know the studio state.',
 			defaultStyle: { bgcolor: Colors.grey, color: Colors.white },
 			options: [],
-			callback: () => self.model.studio?.status === 'offair',
+			callback: () => studioStatus(self.model.studio) === 'offair',
 		},
 
 		signal_active: {
@@ -118,7 +119,7 @@ export function UpdateFeedbacks(self: VraCoreInstance): void {
 					choices: cameras,
 					default: firstId(cameras),
 					allowCustom: true,
-					tooltip: 'Camera number, name or id',
+					tooltip: 'Camera id, name or number',
 				},
 			],
 			callback: (feedback) => findCamera(self.model, text(feedback.options.camera))?.on_air === true,
@@ -137,7 +138,7 @@ export function UpdateFeedbacks(self: VraCoreInstance): void {
 					choices: cameras,
 					default: firstId(cameras),
 					allowCustom: true,
-					tooltip: 'Camera number, name or id',
+					tooltip: 'Camera id, name or number',
 				},
 			],
 			callback: (feedback) => findCamera(self.model, text(feedback.options.camera))?.preview === true,
@@ -202,6 +203,7 @@ export function UpdateFeedbacks(self: VraCoreInstance): void {
 		variable_true: {
 			type: 'boolean',
 			name: 'Variable: BOOLEAN is true',
+			description: 'True for TRUE, 1 or ON, as the Core reads it for toggle.',
 			defaultStyle: { bgcolor: Colors.amber, color: Colors.black },
 			options: [
 				{

@@ -18,12 +18,13 @@ export interface CoreSection {
 }
 
 export interface StudioSection {
-	id?: string | null
-	name?: string | null
-	status: StudioStatus | string | null
+	id: string | null
+	name: string | null
+	/** Never null: the Core reports `offair` while the studio state is unknown (`state` null). */
+	status: StudioStatus | string
 	/** True for on air and for recording. */
 	active: boolean
-	/** 0 off air, 1 on air, 2 recording. */
+	/** 0 off air, 1 on air, 2 recording; null while unknown. */
 	state: number | null
 }
 
@@ -64,7 +65,7 @@ export interface AutomationItem {
 	name: string
 	enabled: boolean
 	/** `standby`, `activated`, `released` or `stopped`. */
-	state: string | null
+	state: string
 }
 
 export interface OutputScene {
@@ -72,6 +73,16 @@ export interface OutputScene {
 	name: string | null
 	since_at: number | null
 	cause: string | null
+}
+
+/** One playout scene of an output (`playout[]`). */
+export interface OutputPlayout {
+	scene: string
+	/** `standby`, `taking`, `on_air`, `returning` or `holding`. */
+	phase: string
+	bank: { key: string; name: string | null; program_id: string | null } | null
+	clip: { key: string; label: string | null; number: number | null } | null
+	rundown: { key: string; program_id: string | null; next_item: string | null; on_air_item: string | null } | null
 }
 
 export interface OutputItem {
@@ -83,13 +94,17 @@ export interface OutputItem {
 	/** The switched scene on air, or null. */
 	scene: OutputScene | null
 	variant: { key: string; cause: string | null } | null
-	playout: unknown[] | null
+	playout: OutputPlayout[]
 }
 
 export interface CameraItem {
 	id: string
-	name: string
-	/** 1-based position in the camera list; the API accepts it as `{id}`. */
+	/** Null when the camera has no name in the rack; see {@link cameraName}. */
+	name: string | null
+	/**
+	 * 1-based position in the camera list; the API accepts it as `{id}`. It shifts when a camera is added or removed
+	 * before it, so dropdowns and presets address cameras by id.
+	 */
 	number: number
 	/** Tally from the live switcher; null when the Core cannot tell. */
 	on_air: boolean | null
@@ -98,17 +113,24 @@ export interface CameraItem {
 
 export interface VariableItem {
 	id: string
+	/** The variable's key. The snapshot may send null; the model then uses the id, which the API accepts too. */
 	name: string
 	/** The stored text; BOOLEAN variables store `TRUE` / `FALSE`. */
 	value: string | null
 }
 
+export interface ClientItem {
+	type: string | null
+	id: string | null
+	hostname: string | null
+	active: boolean
+}
+
 /**
- * A list section of the snapshot. The Core sends signals, macros and automations as a bare array and outputs,
- * cameras and variables as `{items: [...]}`; both forms are accepted so a later Core that aligns them keeps working.
- * Null when the feature is switched off for this device or not loaded yet.
+ * A list section of the snapshot: `{items: [...]}`, or null when the feature is switched off for the studio or this
+ * device, its source is not loaded yet, or (automations, outputs, variables) the device is pinned to another station.
  */
-export type ListSection<T> = T[] | { items: T[] | null } | null | undefined
+export type ListSection<T> = { items: T[] | null } | null | undefined
 
 /** `GET /api/v2/state`. */
 export interface StateSnapshot {
@@ -124,35 +146,65 @@ export interface StateSnapshot {
 	automations: ListSection<AutomationItem>
 	outputs: ListSection<OutputItem>
 	cameras: ListSection<CameraItem>
-	variables: ListSection<VariableItem>
-	clients: unknown[] | null
+	/** Names may be null here; {@link modelFromSnapshot} replaces them with the id. */
+	variables: ListSection<Omit<VariableItem, 'name'> & { name: string | null }>
+	clients: ClientItem[] | null
 	ok: boolean
 }
 
-/** `GET /api/v2`: what this device may use. */
+/** How the Core identified the caller: `principal.kind` of `GET /api/v2`. */
+export type PrincipalKind = 'loopback' | 'device' | 'legacy' | 'lan' | 'anonymous'
+
+/** One route of `GET /api/v2` `endpoints` (only the routes of features the studio has switched on). */
+export interface ApiEndpoint {
+	id: string
+	feature: string
+	kind: 'read' | 'control' | string
+	scope: 'studio' | 'station' | string
+	methods: string[]
+	path: string
+	plain_path: string | null
+	summary: string | null
+}
+
+/** `GET /api/v2`: the Core, the studio's API settings and the caller. */
 export interface ApiInfo {
-	version: string | null
+	version: string
+	server: string | null
+	studio: StudioSection | null
+	station: StationRef | null
+	core: CoreSection | null
+	api: { enabled: boolean; lan_access: 'off' | 'allowlist' | 'lan' | string; legacy_auth: boolean } | null
+	/**
+	 * The studio-wide feature switches (all eleven features, always). A device limited to some features still sees
+	 * `true` here for the others and gets `403 forbidden` when it calls them.
+	 */
 	features: Record<string, { read: boolean; control: boolean }> | null
-	principal: { name: string; access: 'read' | 'control' | string } | null
+	principal: { kind: PrincipalKind | string; name: string; access: 'read' | 'control' | string } | null
+	endpoints: ApiEndpoint[] | null
 	ok: boolean
 }
 
 /** One entry of `GET /api/v2/cameras` (the snapshot leaves the angles out). */
 export interface CameraDetail extends CameraItem {
-	angles: { id: string; name: string }[] | null
+	angles: { id: string; name: string | null }[]
+	core: { action: string | null; value: string | null; switcher_id: string | null } | null
+	thumb: string | null
 }
 
 /** One entry of `GET /api/v2/variables` (the snapshot leaves the type out). */
-export interface VariableDetail extends VariableItem {
+export interface VariableDetail {
+	id: string
+	name: string | null
 	display_name: string | null
 	/** `TEXT`, `LONG_TEXT`, `BOOLEAN`, `NUMBER`, `OPTIONS`, … */
 	data_type: string | null
+	value: string | null
 }
 
 /** A section's items, or null when the section is absent. */
 export function itemsOf<T>(section: ListSection<T>): T[] | null {
 	if (section === null || section === undefined) return null
-	if (Array.isArray(section)) return section
 	return Array.isArray(section.items) ? section.items : null
 }
 
@@ -173,12 +225,13 @@ export interface CoreModel {
 	cameras: CameraItem[]
 	variables: VariableItem[]
 	/** Angles per camera id, from `GET /api/v2/cameras`. */
-	angles: Map<string, { id: string; name: string }[]>
+	angles: Map<string, { id: string; name: string | null }[]>
 	/** Variable details per variable id, from `GET /api/v2/variables`. */
 	variableDetails: Map<string, VariableDetail>
 	available: {
 		signals: boolean
 		macros: boolean
+		automations: boolean
 		outputs: boolean
 		cameras: boolean
 		variables: boolean
@@ -200,7 +253,7 @@ export function emptyModel(): CoreModel {
 		variables: [],
 		angles: new Map(),
 		variableDetails: new Map(),
-		available: { signals: false, macros: false, outputs: false, cameras: false, variables: false },
+		available: { signals: false, macros: false, automations: false, outputs: false, cameras: false, variables: false },
 	}
 }
 
@@ -223,12 +276,13 @@ export function modelFromSnapshot(snapshot: StateSnapshot, previous: CoreModel):
 		automations: automations ?? [],
 		outputs: outputs ?? [],
 		cameras: cameras ?? [],
-		variables: variables ?? [],
+		variables: (variables ?? []).map((v) => ({ id: v.id, name: v.name ?? v.id, value: v.value })),
 		angles: previous.angles,
 		variableDetails: previous.variableDetails,
 		available: {
 			signals: signals !== null,
 			macros: macros !== null,
+			automations: automations !== null,
 			outputs: outputs !== null,
 			cameras: cameras !== null,
 			variables: variables !== null,
@@ -246,6 +300,7 @@ export function structureKey(model: CoreModel): string {
 		model.available,
 		model.signals.map((s) => [s.id, s.identifier, s.label, s.value_type, s.direction, s.enabled]),
 		model.macros.map((m) => [m.id, m.name]),
+		model.automations.map((a) => [a.id, a.name]),
 		model.outputs.map((o) => [o.output_id, o.slot]),
 		model.cameras.map((c) => [c.id, c.name, c.number]),
 		model.variables.map((v) => [v.id, v.name]),
@@ -265,15 +320,27 @@ export function findMacro(model: CoreModel, key: string): MacroItem | undefined 
 	return model.macros.find((m) => m.id === key) ?? model.macros.find((m) => same(m.name, key))
 }
 
-/** A camera by id, by 1-based number or by name. */
+/**
+ * A camera the way the Core resolves `{id}`: by id, then by name (only when exactly one camera has it), then by
+ * 1-based number. A camera named `2` therefore wins over camera number 2, as it does in the API.
+ */
 export function findCamera(model: CoreModel, key: string): CameraItem | undefined {
 	const byId = model.cameras.find((c) => c.id === key)
 	if (byId) return byId
-	if (/^\d+$/.test(key)) {
-		const byNumber = model.cameras.find((c) => c.number === Number(key))
-		if (byNumber) return byNumber
-	}
-	return model.cameras.find((c) => same(c.name, key))
+	const byName = model.cameras.filter((c) => same(c.name, key))
+	if (byName.length === 1) return byName[0]
+	if (byName.length > 1) return undefined
+	if (/^\d+$/.test(key)) return model.cameras.find((c) => c.number === Number(key))
+	return undefined
+}
+
+/** A camera's display name: its name, or `Camera <n>` when the rack has none. */
+export function cameraName(camera: CameraItem): string {
+	return camera.name ?? `Camera ${camera.number}`
+}
+
+export function findAutomation(model: CoreModel, key: string): AutomationItem | undefined {
+	return model.automations.find((a) => a.id === key) ?? model.automations.find((a) => same(a.name, key))
 }
 
 /** An output by output id or by slot key. */
@@ -290,9 +357,16 @@ export function outputKey(output: OutputItem): string {
 	return output.slot ?? output.output_id
 }
 
-/** True for a BOOLEAN variable whose value is `TRUE` (any case). */
+/** True for a variable value the Core's own toggle reads as on: `TRUE`, `1` or `ON` (any case). */
 export function isVariableTrue(variable: VariableItem | undefined): boolean {
-	return typeof variable?.value === 'string' && variable.value.toUpperCase() === 'TRUE'
+	const value = variable?.value?.trim().toUpperCase()
+	return value === 'TRUE' || value === '1' || value === 'ON'
+}
+
+/** The studio's status for display: empty while the Core does not know it (it then reports `offair`). */
+export function studioStatus(studio: StudioSection | null): string {
+	if (studio === null || studio.state === null) return ''
+	return studio.status
 }
 
 /** Signals the API can switch with `/on`, `/off` and `/toggle`: enabled `INPUT` signals of type BOOLEAN or INTEGER. */

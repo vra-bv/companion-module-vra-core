@@ -8,7 +8,7 @@ See [companion/HELP.md](./companion/HELP.md) for setup and the list of actions, 
 
 - **Connection**: `GET /api/v2` with the device token as `Authorization: Bearer vra_…` (no header when the token is empty: loopback and LAN access need none). It sets the connection status and is retried every 5 s while it fails.
 - **State**: `GET /api/v2/state` every poll interval. `rev` is a fingerprint of the snapshot; an unchanged `rev` costs nothing. A new `rev` updates the variables and re-checks the feedbacks. When signals, macros, cameras, output slots or variables are added, removed or renamed, the module also reads `GET /api/v2/cameras` (angles) and `GET /api/v2/variables` (types) and rebuilds its action, feedback, variable and preset definitions.
-- **Actions**: `POST` on the control route (the Core accepts GET and POST), with `?station=` when a station is configured and `?timeout=2500` so the Core answers within the module's 3 s request bound. A refusal is logged with the API's `error` and `message`; a success triggers an immediate poll.
+- **Actions**: `POST` on the control route (the Core accepts GET and POST), with `?station=` when a station is configured and `?timeout=` (2500 ms, 2900 ms for variable writes and camera commands) so the Core answers, with its own `504 timeout` if need be, before the module gives up on the request. A refusal is logged with the API's `error` and `message`; a success triggers an immediate poll.
 
 The token is stored as a Companion secret, not in the connection config.
 

@@ -8,7 +8,7 @@
  */
 
 import type { CompanionVariableDefinitions, CompanionVariableValues } from '@companion-module/base'
-import { outputKey, type CoreModel } from './state.js'
+import { cameraName, outputKey, studioStatus, type CoreModel } from './state.js'
 
 export interface VariableLayout {
 	definitions: CompanionVariableDefinitions<CompanionVariableValues>
@@ -37,7 +37,7 @@ export function variableIdPart(raw: string): string {
 export function buildVariableLayout(model: CoreModel): VariableLayout {
 	const definitions: CompanionVariableDefinitions<CompanionVariableValues> = {
 		core_state: { name: 'Core state (ACTIVE, DEACTIVATED, STARTING, …)' },
-		studio_status: { name: 'Studio status (onair, recording, offair)' },
+		studio_status: { name: 'Studio status (onair, recording, offair; empty while unknown)' },
 		station_name: { name: 'Station on the studio' },
 		program_title: { name: 'Title of the program on air' },
 	}
@@ -64,7 +64,9 @@ export function buildVariableLayout(model: CoreModel): VariableLayout {
 
 	for (const camera of model.cameras) {
 		const id = claim(`camera_${camera.number}_onair`)
-		definitions[id] = { name: `Camera ${camera.number} (${camera.name}) on air: true, false, empty when unknown` }
+		definitions[id] = {
+			name: `Camera ${camera.number} (${cameraName(camera)}) on air: true, false, empty when unknown`,
+		}
 		layout.cameras.set(camera.id, id)
 	}
 
@@ -90,7 +92,7 @@ export function buildVariableLayout(model: CoreModel): VariableLayout {
 export function variableValues(model: CoreModel, layout: VariableLayout): CompanionVariableValues {
 	const values: CompanionVariableValues = {
 		core_state: model.core?.state ?? '',
-		studio_status: model.studio?.status ?? '',
+		studio_status: studioStatus(model.studio),
 		station_name: model.station?.name ?? '',
 		program_title: model.programTitle,
 	}
