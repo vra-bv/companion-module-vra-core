@@ -6,6 +6,7 @@ All notable changes to this module are documented here. The format follows [Keep
 
 ### Added
 
+- `docs/TESTING.md`: running the module in Companion 5 as a developer module, headless, against a real Core or the Core API over a fake runtime.
 - Tooling from the Companion module template: GitHub workflows (module checks, Node CI, release), issue templates, husky pre-commit hook with lint-staged.
 
 ### Fixed
@@ -18,6 +19,8 @@ All notable changes to this module are documented here. The format follows [Keep
 
 ### Changed
 
+- Variable dropdowns and presets address station variables by id: names are not unique on a real station.
+- Log lines name cameras and variables instead of showing their ids.
 - Camera dropdowns and presets address cameras by id: a button keeps its camera when one is added or removed before it.
 - `BOOLEAN is true` matches the Core's toggle: `TRUE`, `1` and `ON`.
 - Snapshot types follow the Core API v2 source (`{items}` sections only, `GET /api/v2` with `principal.kind`, `api`, `endpoints`).

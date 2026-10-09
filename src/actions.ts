@@ -11,7 +11,7 @@
 import type { DropdownChoice } from '@companion-module/base'
 import { seg, type Query } from './api.js'
 import type VraCoreInstance from './main.js'
-import { cameraName, isSwitchableSignal, outputKey, type CoreModel } from './state.js'
+import { cameraName, findCamera, findVariable, isSwitchableSignal, outputKey, type CoreModel } from './state.js'
 
 export type ActionsSchema = {
 	core_control: { options: { command: string } }
@@ -75,14 +75,17 @@ export function slotChoices(model: CoreModel): DropdownChoice<string>[] {
 	return model.outputs.map((o) => ({ id: outputKey(o), label: outputKey(o) }))
 }
 
-/** Station variables by name. */
+/**
+ * Station variables by id: names are not unique (a station can have two `bg_image` variables). The label shows the
+ * name; a name typed in works too (the Core then takes the first match).
+ */
 export function variableChoices(model: CoreModel, booleanOnly = false): DropdownChoice<string>[] {
 	return model.variables
 		.filter((v) => !booleanOnly || isBooleanVariable(model, v.id))
 		.map((v) => {
 			const detail = model.variableDetails.get(v.id)
 			const display = detail?.display_name && detail.display_name !== v.name ? ` (${detail.display_name})` : ''
-			return { id: v.name, label: `${v.name}${display}` }
+			return { id: v.id, label: `${v.name}${display}` }
 		})
 }
 
@@ -155,6 +158,13 @@ export function UpdateActions(self: VraCoreInstance): void {
 		tooltip: 'Key of the playout scene. Only needed when the output has more than one.',
 		default: '',
 	}
+
+	/** Readable names for log lines: dropdowns hold ids. */
+	const cameraLabel = (key: string): string => {
+		const camera = findCamera(self.model, key)
+		return camera ? `${camera.number} ${cameraName(camera)}` : key
+	}
+	const variableLabel = (key: string): string => findVariable(self.model, key)?.name ?? key
 
 	/** Runs a control route, unless a required option is empty. */
 	const run = async (label: string, path: string | null, query: Query = {}): Promise<void> => {
@@ -314,7 +324,7 @@ export function UpdateActions(self: VraCoreInstance): void {
 			],
 			callback: async (event) => {
 				const camera = text(event.options.camera)
-				await run(`Camera ${camera} cut`, camera ? `/cameras/${seg(camera)}/cut` : null)
+				await run(`Camera ${cameraLabel(camera)} cut`, camera ? `/cameras/${seg(camera)}/cut` : null)
 			},
 		},
 
@@ -333,7 +343,7 @@ export function UpdateActions(self: VraCoreInstance): void {
 			],
 			callback: async (event) => {
 				const camera = text(event.options.camera)
-				await run(`Camera ${camera} preview`, camera ? `/cameras/${seg(camera)}/preview` : null)
+				await run(`Camera ${cameraLabel(camera)} preview`, camera ? `/cameras/${seg(camera)}/preview` : null)
 			},
 		},
 
@@ -492,7 +502,7 @@ export function UpdateActions(self: VraCoreInstance): void {
 					choices: variables,
 					default: firstId(variables),
 					allowCustom: true,
-					tooltip: 'Variable name or id',
+					tooltip: 'Variable id or name',
 				},
 				{
 					type: 'dropdown',
@@ -516,7 +526,7 @@ export function UpdateActions(self: VraCoreInstance): void {
 				const valid = variable !== '' && ['set', 'on', 'off', 'toggle'].includes(command)
 				// `/set` always carries `value=`, also when empty: a TEXT variable may be cleared that way.
 				await run(
-					`Variable ${variable} ${command}`,
+					`Variable ${variableLabel(variable)} ${command}`,
 					valid ? `/variables/${seg(variable)}/${command}` : null,
 					command === 'set' ? { value: text(event.options.value) } : {},
 				)
