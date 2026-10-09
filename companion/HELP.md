@@ -16,6 +16,8 @@ Core API documentation: [docs.visualradioassist.live › Core control API](https
 
 No token is needed either when **Access without a token** lets this machine in (**Listed devices** or **Whole LAN**).
 
+**No internet on the Companion machine?** Download the newest package from [github.com/vra-bv/companion-module-vra-core › releases](https://github.com/vra-bv/companion-module-vra-core/releases/latest/download/vra-core.tgz) on another machine and import it in Companion under **Modules → Import module package**.
+
 | Setting       | Meaning                                                                                                                                                                                                                                                          |
 | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Core address  | IP address or host name of the Core machine. A pasted URL such as `http://192.168.1.50:3002/api/v2` works too.                                                                                                                                                   |

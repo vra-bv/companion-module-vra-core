@@ -14,6 +14,7 @@ All notable changes to this module are documented here. The format follows [Keep
 - Variables: connection (`core_version`, `connected_as`, `access`), `core_active`, `studio_name`, `program_titles`, macro running, automation state, camera preview and name, `camera_program` / `camera_preview`, playout phase / hold / items on air / rundown / next item, bank next item and AUTO, VRA apps connected.
 - Presets for all of it, grouped per signal, camera, output slot, playout scene and bank: studio recording and status, Core activate / deactivate / reload, station and program displays, signal on / off, automations, camera preview and angles, output reload / scene / playout / rundown / banks, variable value displays, VRA apps.
 - Learn on signal set, camera cut / preview, scene take, rundown, item, variable set, and on the value / state / scene / phase feedbacks.
+- Releases publish themselves: a `v*` tag packages the module and attaches `vra-core-<version>.tgz` and `vra-core.tgz` (stable link for offline installs) to a GitHub release.
 - Configuration: `127.0.0.1` as the default address (Companion usually runs on the Core machine), a pasted URL or `host:port` is accepted, a malformed token is reported as a bad config, and a link to the Core API documentation.
 - Camera angles and variable types are read again every 60 s.
 
