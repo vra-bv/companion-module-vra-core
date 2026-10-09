@@ -14,7 +14,15 @@ The token is stored as a Companion secret, not in the connection config.
 
 ## Development
 
-Requires Node.js 22 and Yarn 4 (`corepack enable`).
+Requires Node.js 22 (the module runs on Companion's `node22` runtime) and Yarn 4. With nvm, `.nvmrc` pins Node 22:
+
+```sh
+nvm install   # once
+nvm use
+corepack enable
+```
+
+The husky pre-commit hook runs `yarn`; when you commit from an IDE or a shell without nvm, put `source ~/.nvm/nvm.sh && nvm use --silent` in `~/.config/husky/init.sh`.
 
 ```sh
 yarn install
