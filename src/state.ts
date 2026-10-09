@@ -75,14 +75,63 @@ export interface OutputScene {
 	cause: string | null
 }
 
-/** One playout scene of an output (`playout[]`). */
+/** An item on air in a playout scene (`playout[].on_air_items[]`). */
+export interface OnAirItem {
+	/** The item key (`<story>.<item>` for rundown items). */
+	item: string
+	/** Where it came from: `rundown`, `bank`, `direct`, … */
+	from: string | null
+	zone: string | null
+	kind: string | null
+	since_at: number | null
+	ends_at: number | null
+	paused: boolean
+	step: number | null
+	leftover_until: number | null
+}
+
+/** A clip or graphics bank of a playout scene (`playout[].banks[]`). */
+export interface PlayoutBank {
+	key: string
+	kind: string | null
+	/**
+	 * True while the bank can be used: always for pinned and flex banks, for a show bank only while its program is on
+	 * air (otherwise its commands answer `409 bank_not_active`). Not whether an item of it is on air: see
+	 * {@link isBankOnAir}.
+	 */
+	active: boolean
+	program_id: string | null
+	/** The item `banks/{bank}/next` takes. */
+	next: string | null
+	/** AUTO: an item that ends on its own takes the next one. */
+	auto: boolean
+}
+
+export interface PlayoutRundown {
+	key: string
+	manual: boolean
+	wrap: boolean
+	program_id: string | null
+	next_item: string | null
+	on_air_item: string | null
+	played: string[]
+}
+
+/**
+ * One playout scene of an output (`playout[]`). The fields after `phase` arrived with the playout v2 player; a Core
+ * from before it leaves them out, so they are optional.
+ */
 export interface OutputPlayout {
 	scene: string
-	/** `standby`, `taking`, `on_air`, `returning` or `holding`. */
+	/** `standby`, `taking`, `on_air`, `returning`, `holding`, … */
 	phase: string
-	bank: { key: string; name: string | null; program_id: string | null } | null
-	clip: { key: string; label: string | null; number: number | null } | null
-	rundown: { key: string; program_id: string | null; next_item: string | null; on_air_item: string | null } | null
+	/** Held on air when it runs empty. */
+	hold?: boolean
+	on_empty?: string | null
+	interrupted_by?: string | null
+	on_air_items?: OnAirItem[]
+	banks?: PlayoutBank[]
+	rundown: PlayoutRundown | null
 }
 
 export interface OutputItem {
@@ -218,12 +267,15 @@ export interface CoreModel {
 	studio: StudioSection | null
 	station: StationRef | null
 	programTitle: string
+	/** Every program on air (a station can run more than one). */
+	programTitles: string[]
 	signals: SignalItem[]
 	macros: MacroItem[]
 	automations: AutomationItem[]
 	outputs: OutputItem[]
 	cameras: CameraItem[]
 	variables: VariableItem[]
+	clients: ClientItem[]
 	/** Angles per camera id, from `GET /api/v2/cameras`. */
 	angles: Map<string, { id: string; name: string | null }[]>
 	/** Variable details per variable id, from `GET /api/v2/variables`. */
@@ -245,12 +297,14 @@ export function emptyModel(): CoreModel {
 		studio: null,
 		station: null,
 		programTitle: '',
+		programTitles: [],
 		signals: [],
 		macros: [],
 		automations: [],
 		outputs: [],
 		cameras: [],
 		variables: [],
+		clients: [],
 		angles: new Map(),
 		variableDetails: new Map(),
 		available: { signals: false, macros: false, automations: false, outputs: false, cameras: false, variables: false },
@@ -271,12 +325,14 @@ export function modelFromSnapshot(snapshot: StateSnapshot, previous: CoreModel):
 		studio: snapshot.studio,
 		station: snapshot.station,
 		programTitle: snapshot.program?.[0] ?? '',
+		programTitles: snapshot.program ?? [],
 		signals: signals ?? [],
 		macros: macros ?? [],
 		automations: automations ?? [],
 		outputs: outputs ?? [],
 		cameras: cameras ?? [],
 		variables: (variables ?? []).map((v) => ({ id: v.id, name: v.name ?? v.id, value: v.value })),
+		clients: Array.isArray(snapshot.clients) ? snapshot.clients : [],
 		angles: previous.angles,
 		variableDetails: previous.variableDetails,
 		available: {
@@ -301,7 +357,12 @@ export function structureKey(model: CoreModel): string {
 		model.signals.map((s) => [s.id, s.identifier, s.label, s.value_type, s.direction, s.enabled]),
 		model.macros.map((m) => [m.id, m.name]),
 		model.automations.map((a) => [a.id, a.name]),
-		model.outputs.map((o) => [o.output_id, o.slot]),
+		model.outputs.map((o) => [
+			o.output_id,
+			o.slot,
+			o.playout.map((p) => [p.scene, p.rundown?.key ?? null, (p.banks ?? []).map((b) => b.key)]),
+		]),
+		model.clients.map((c) => [c.type, c.hostname]),
 		model.cameras.map((c) => [c.id, c.name, c.number]),
 		model.variables.map((v) => [v.id, v.name]),
 	])
@@ -350,6 +411,37 @@ export function findOutput(model: CoreModel, key: string): OutputItem | undefine
 
 export function findVariable(model: CoreModel, key: string): VariableItem | undefined {
 	return model.variables.find((v) => v.id === key) ?? model.variables.find((v) => same(v.name, key))
+}
+
+/** A playout scene of an output: the named one, else the only one. */
+export function findPlayout(output: OutputItem | undefined, scene: string): OutputPlayout | undefined {
+	if (output === undefined) return undefined
+	if (scene !== '') return output.playout.find((p) => same(p.scene, scene))
+	return output.playout.length === 1 ? output.playout[0] : undefined
+}
+
+/** A bank of an output, looked up in the named playout scene, else in all of them. */
+export function findBank(output: OutputItem | undefined, bank: string, scene = ''): PlayoutBank | undefined {
+	if (output === undefined) return undefined
+	const scenes = scene !== '' ? output.playout.filter((p) => same(p.scene, scene)) : output.playout
+	for (const p of scenes) {
+		const found = (p.banks ?? []).find((b) => same(b.key, bank))
+		if (found) return found
+	}
+	return undefined
+}
+
+/** True while an item of the bank is on air in the playout scene (items are addressed `bank/<bank>/<item>`). */
+export function isBankOnAir(playout: OutputPlayout | undefined, bank: string): boolean {
+	const prefix = `bank/${bank.toLowerCase()}/`
+	return (playout?.on_air_items ?? []).some((i) => i.item.toLowerCase().startsWith(prefix))
+}
+
+/** The playout scene of an output that holds the bank: the named one, else the first that has it. */
+export function playoutWithBank(output: OutputItem | undefined, bank: string, scene = ''): OutputPlayout | undefined {
+	if (output === undefined) return undefined
+	if (scene !== '') return findPlayout(output, scene)
+	return output.playout.find((p) => (p.banks ?? []).some((b) => same(b.key, bank)))
 }
 
 /** How an output is addressed in routes and dropdowns: its slot key, else its id. */

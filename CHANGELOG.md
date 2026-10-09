@@ -6,6 +6,21 @@ All notable changes to this module are documented here. The format follows [Keep
 
 ### Added
 
+- Everything the Core API v2 controls, as of the Core with the playout v2 Output Player:
+  - Core: reload configuration and restart apps (`?wait=0`).
+  - Studio: set from a value (`/studio/set`), for expressions.
+  - Outputs: rundown select; item take / take out / continue / pause / resume; bank start / next / previous / stop; bank AUTO on / off / toggle; playout take out all / return; playout hold on / off / toggle.
+- Feedbacks: signal value equals, automation state, output scene on air, playout phase, playout held, item on air, bank on air, bank available, bank AUTO, VRA app connected.
+- Variables: connection (`core_version`, `connected_as`, `access`), `core_active`, `studio_name`, `program_titles`, macro running, automation state, camera preview and name, `camera_program` / `camera_preview`, playout phase / hold / items on air / rundown / next item, bank next item and AUTO, VRA apps connected.
+- Presets for all of it, grouped per signal, camera, output slot, playout scene and bank: studio recording and status, Core activate / deactivate / reload, station and program displays, signal on / off, automations, camera preview and angles, output reload / scene / playout / rundown / banks, variable value displays, VRA apps.
+- Learn on signal set, camera cut / preview, scene take, rundown, item, variable set, and on the value / state / scene / phase feedbacks.
+- Configuration: `127.0.0.1` as the default address (Companion usually runs on the Core machine), a pasted URL or `host:port` is accepted, a malformed token is reported as a bad config, and a link to the Core API documentation.
+- Camera angles and variable types are read again every 60 s.
+
+### Removed
+
+- Output: play clip and take out all graphics. The Core with the playout v2 player replaced them with banks, items and playout take out all.
+
 - `docs/TESTING.md`: running the module in Companion 5 as a developer module, headless, against a real Core or the Core API over a fake runtime.
 - Tooling from the Companion module template: GitHub workflows (module checks, Node CI, release), issue templates, husky pre-commit hook with lint-staged.
 
