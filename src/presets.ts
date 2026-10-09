@@ -587,7 +587,7 @@ export function UpdatePresets(self: VraCoreInstance, layout: VariableLayout): vo
 			groups.push(group(p, scene ? `${slot} · ${playout.scene}` : `${slot} · playout`, add(entries)))
 
 			const bankEntries: [string, Preset][] = []
-			for (const bank of playout.banks ?? []) {
+			for (const bank of playout.banks) {
 				const b = `${p}_bank_${variableIdPart(bank.key)}`
 				const options = { ...on, bank: bank.key }
 				const nextVar = layout.banks.get(`${output.output_id}/${bank.key}`)

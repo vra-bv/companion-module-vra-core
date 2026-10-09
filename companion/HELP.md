@@ -16,6 +16,8 @@ Core API documentation: [docs.visualradioassist.live › Core control API](https
 
 No token is needed either when **Access without a token** lets this machine in (**Listed devices** or **Whole LAN**).
 
+**No internet on the Companion machine?** Download the newest package from [github.com/vra-bv/companion-module-vra-core › releases](https://github.com/vra-bv/companion-module-vra-core/releases/latest/download/vra-core.tgz) on another machine and import it in Companion under **Modules → Import module package**.
+
 | Setting       | Meaning                                                                                                                                                                                                                                                          |
 | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Core address  | IP address or host name of the Core machine. A pasted URL such as `http://192.168.1.50:3002/api/v2` works too.                                                                                                                                                   |
@@ -57,6 +59,8 @@ When a token is configured but the Core let Companion in another way (from the C
 | **Variable**                                  | Set a value, or on, off, toggle a BOOLEAN station user input variable (written through VRA Cloud). **Learn** takes the current value. |
 
 Dropdowns list what the Core reports, and you can type a value instead: a signal identifier, a macro name, a camera number or name, a slot key, a variable name, or `<camera>/<angle>` for an angle.
+
+Output actions and feedbacks need the **Output Player v2**. An output of an older player is left out (the log says so once).
 
 Item addresses are the player's own: `bank/<bank>/<item>` for bank items and `rundown/<rundown>/<story>/<item>` for rundown items. The output variables show them.
 

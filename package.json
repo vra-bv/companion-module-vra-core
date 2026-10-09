@@ -1,6 +1,6 @@
 {
 	"name": "companion-module-vra-core",
-	"version": "0.1.0",
+	"version": "1.0.0",
 	"description": "Bitfocus Companion module for the VRA Core API v2",
 	"main": "dist/main.js",
 	"type": "module",

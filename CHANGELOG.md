@@ -2,7 +2,7 @@
 
 All notable changes to this module are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the module uses [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.0.0] - 2026-10-09
 
 ### Added
 
@@ -14,11 +14,13 @@ All notable changes to this module are documented here. The format follows [Keep
 - Variables: connection (`core_version`, `connected_as`, `access`), `core_active`, `studio_name`, `program_titles`, macro running, automation state, camera preview and name, `camera_program` / `camera_preview`, playout phase / hold / items on air / rundown / next item, bank next item and AUTO, VRA apps connected.
 - Presets for all of it, grouped per signal, camera, output slot, playout scene and bank: studio recording and status, Core activate / deactivate / reload, station and program displays, signal on / off, automations, camera preview and angles, output reload / scene / playout / rundown / banks, variable value displays, VRA apps.
 - Learn on signal set, camera cut / preview, scene take, rundown, item, variable set, and on the value / state / scene / phase feedbacks.
+- Releases publish themselves: a `v*` tag packages the module and attaches `vra-core-<version>.tgz` and `vra-core.tgz` (stable link for offline installs) to a GitHub release.
 - Configuration: `127.0.0.1` as the default address (Companion usually runs on the Core machine), a pasted URL or `host:port` is accepted, a malformed token is reported as a bad config, and a link to the Core API documentation.
 - Camera angles and variable types are read again every 60 s.
 
 ### Removed
 
+- Support for outputs of an Output Player before v2: only the v2 playout payload (banks, items) is read; older outputs are left out with one log warning.
 - Output: play clip and take out all graphics. The Core with the playout v2 player replaced them with banks, items and playout take out all.
 
 - `docs/TESTING.md`: running the module in Companion 5 as a developer module, headless, against a real Core or the Core API over a fake runtime.

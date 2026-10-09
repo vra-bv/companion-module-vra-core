@@ -2,7 +2,16 @@
 
 [Bitfocus Companion](https://bitfocus.io/companion) module for the **VRA Core API v2**: control a Visual Radio Assist Core from a Stream Deck or any other Companion surface, with tally and status feedback.
 
-See [companion/HELP.md](./companion/HELP.md) for setup and the list of actions, feedbacks, variables and presets, and the [Core API documentation](https://docs.visualradioassist.live/develop-with-vra/core-control-api/bitfocus-companion-control-over-visual-radio).
+- **Studio and Core**: on air, recording, off air; Core activate / deactivate, reload configuration, restart apps.
+- **Signals, Audio Director, Camera Assist, macros**: switch, set, trigger, with state feedback; automations as state.
+- **Cameras**: cut, preview and angles, with program (red) and preview (green) tally.
+- **Output Player**: scenes, rundown, items, clip and graphics banks (AUTO), playout take out / return / hold, reload.
+- **Station variables**: set and toggle through VRA Cloud.
+- **Presets generated from the studio**, rebuilt when it changes; variables for every status.
+
+In the usual setup Companion runs on the Core machine: add a **VRA Core** connection and keep the defaults (`127.0.0.1`, no token). See [companion/HELP.md](./companion/HELP.md) for setup from another machine, and for every action, feedback, variable and preset. The API itself is documented at [docs.visualradioassist.live › Core control API](https://docs.visualradioassist.live/develop-with-vra/core-control-api).
+
+Requires Companion 5.0 or later and a Core with the Core API v2. Outputs need the Output Player v2 (playout with banks and items); outputs of an older player are left out.
 
 ## How it works
 
@@ -33,7 +42,7 @@ yarn lint
 yarn package      # build a module package (pkg/) with companion-module-build
 ```
 
-To load the module in Companion during development, point Companion's **Developer modules path** at the folder that contains this repository and run `yarn dev`.
+To load the module in Companion during development, point Companion's **Developer modules path** at a folder that contains this repository (or a symlink to it) and run `yarn dev`; restart the connection after a rebuild. [docs/TESTING.md](./docs/TESTING.md) covers headless Companion, scripted checks and test Cores; [docs/RELEASING.md](./docs/RELEASING.md) the Bitfocus store release.
 
 ### Layout
 

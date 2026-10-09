@@ -118,7 +118,7 @@ export function playoutChoices(model: CoreModel): DropdownChoice<string>[] {
 
 /** Clip and graphics banks of every playout scene. */
 export function bankChoices(model: CoreModel): DropdownChoice<string>[] {
-	return distinct(model.outputs.flatMap((o) => o.playout.flatMap((p) => (p.banks ?? []).map((b) => b.key))))
+	return distinct(model.outputs.flatMap((o) => o.playout.flatMap((p) => p.banks.map((b) => b.key))))
 }
 
 /** Rundowns the outputs' playout scenes have loaded. */

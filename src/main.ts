@@ -26,7 +26,7 @@ import { UpdateActions, type ActionsSchema } from './actions.js'
 import { configProblem, GetConfigFields, normaliseConfig, type ModuleConfig, type ModuleSecrets } from './config.js'
 import { UpdateFeedbacks, type FeedbacksSchema } from './feedbacks.js'
 import { UpdatePresets } from './presets.js'
-import { emptyModel, modelFromSnapshot, structureKey, type CoreModel } from './state.js'
+import { emptyModel, isPlayoutV2, modelFromSnapshot, structureKey, type CoreModel } from './state.js'
 import { UpgradeScripts } from './upgrades.js'
 import { buildVariableLayout, variableValues, type ConnectionInfo, type VariableLayout } from './variables.js'
 
@@ -65,6 +65,8 @@ export default class VraCoreInstance extends InstanceBase<ModuleSchema> {
 	#structure: string | null = null
 	/** When the camera angles and variable details were last read. */
 	#detailsAt = 0
+	/** True once an output with an Output Player before v2 was reported, so it is logged once. */
+	#warnedPlayout = false
 	/** The status text of the connection, kept to restore it after a passing failure. */
 	#okText = ''
 
@@ -260,6 +262,13 @@ export default class VraCoreInstance extends InstanceBase<ModuleSchema> {
 		if (snapshot.rev === this.model.rev && !detailsDue) return
 
 		const model = modelFromSnapshot(snapshot, this.model)
+		if (!isPlayoutV2(model.outputs)) {
+			// Only the Output Player v2 payload is supported; an older player's outputs are left out.
+			if (!this.#warnedPlayout)
+				this.log('warn', 'An output runs an Output Player before v2: its outputs are not supported and left out')
+			this.#warnedPlayout = true
+			model.outputs = model.outputs.filter((o) => isPlayoutV2([o]))
+		}
 		const structure = structureKey(model)
 		if (structure !== this.#structure || detailsDue) {
 			const before = detailsKey(model)
