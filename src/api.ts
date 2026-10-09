@@ -64,22 +64,22 @@ export class CoreApiClient {
 	}
 
 	/** `GET /api/v2`: features and principal; also the connection check. */
-	info(): Promise<ApiResult<ApiInfo>> {
+	async info(): Promise<ApiResult<ApiInfo>> {
 		return this.request<ApiInfo>('GET', '')
 	}
 
 	/** `GET /api/v2/state`: the poller snapshot. */
-	state(): Promise<ApiResult<StateSnapshot>> {
+	async state(): Promise<ApiResult<StateSnapshot>> {
 		return this.request<StateSnapshot>('GET', '/state')
 	}
 
 	/** `GET /api/v2/cameras`: the cameras with their angles. */
-	cameras(): Promise<ApiResult<{ items: CameraDetail[] | null }>> {
+	async cameras(): Promise<ApiResult<{ items: CameraDetail[] | null }>> {
 		return this.request<{ items: CameraDetail[] | null }>('GET', '/cameras')
 	}
 
 	/** `GET /api/v2/variables`: the station's variables with their types. */
-	variables(): Promise<ApiResult<{ items: VariableDetail[] | null }>> {
+	async variables(): Promise<ApiResult<{ items: VariableDetail[] | null }>> {
 		return this.request<{ items: VariableDetail[] | null }>('GET', '/variables')
 	}
 
@@ -87,7 +87,7 @@ export class CoreApiClient {
 	 * Calls a control route with POST (the Core accepts GET and POST on every control path; arguments stay in the
 	 * path and query, never in a body). `path` is relative to `/api/v2` and starts with `/`.
 	 */
-	control(path: string, query: Query = {}): Promise<ApiResult<Record<string, unknown>>> {
+	async control(path: string, query: Query = {}): Promise<ApiResult<Record<string, unknown>>> {
 		return this.request<Record<string, unknown>>('POST', path, { timeout: CONTROL_ACK_TIMEOUT_MS, ...query })
 	}
 

@@ -24,5 +24,17 @@
 	"legacyIds": [],
 	"manufacturer": "Visual Radio Assist",
 	"products": ["VRA Core API"],
-	"keywords": ["VRA", "Visual Radio Assist", "visual radio", "radio", "broadcast", "studio", "on air", "tally", "camera", "macro", "signals"]
+	"keywords": [
+		"VRA",
+		"Visual Radio Assist",
+		"visual radio",
+		"radio",
+		"broadcast",
+		"studio",
+		"on air",
+		"tally",
+		"camera",
+		"macro",
+		"signals"
+	]
 }

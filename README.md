@@ -14,7 +14,15 @@ The token is stored as a Companion secret, not in the connection config.
 
 ## Development
 
-Requires Node.js 22 and Yarn 4 (`corepack enable`).
+Requires Node.js 22 (the module runs on Companion's `node22` runtime) and Yarn 4. With nvm, `.nvmrc` pins Node 22:
+
+```sh
+nvm install   # once
+nvm use
+corepack enable
+```
+
+The husky pre-commit hook runs `yarn`; when you commit from an IDE or a shell without nvm, put `source ~/.nvm/nvm.sh && nvm use --silent` in `~/.config/husky/init.sh`.
 
 ```sh
 yarn install
@@ -29,17 +37,17 @@ To load the module in Companion during development, point Companion's **Develope
 
 ### Layout
 
-| File | Purpose |
-| --- | --- |
-| `src/main.ts` | The instance: connection check, poll loop, definitions, `runControl` |
-| `src/api.ts` | Typed `fetch` client with the 3 s bound and the API's error codes |
-| `src/state.ts` | Snapshot types, the normalised model and the lookups (ids exact, names case-insensitive) |
-| `src/config.ts` | Connection settings and the token secret |
-| `src/actions.ts` | Actions and the dropdown choices shared with the feedbacks |
-| `src/feedbacks.ts` | Boolean feedbacks and the tally colours |
-| `src/variables.ts` | Variable layout and values |
-| `src/presets.ts` | Presets generated from the snapshot |
-| `src/upgrades.ts` | Upgrade scripts (none yet) |
+| File               | Purpose                                                                                  |
+| ------------------ | ---------------------------------------------------------------------------------------- |
+| `src/main.ts`      | The instance: connection check, poll loop, definitions, `runControl`                     |
+| `src/api.ts`       | Typed `fetch` client with the 3 s bound and the API's error codes                        |
+| `src/state.ts`     | Snapshot types, the normalised model and the lookups (ids exact, names case-insensitive) |
+| `src/config.ts`    | Connection settings and the token secret                                                 |
+| `src/actions.ts`   | Actions and the dropdown choices shared with the feedbacks                               |
+| `src/feedbacks.ts` | Boolean feedbacks and the tally colours                                                  |
+| `src/variables.ts` | Variable layout and values                                                               |
+| `src/presets.ts`   | Presets generated from the snapshot                                                      |
+| `src/upgrades.ts`  | Upgrade scripts (none yet)                                                               |
 
 ## License
 
