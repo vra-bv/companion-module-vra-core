@@ -118,20 +118,26 @@ export interface PlayoutRundown {
 }
 
 /**
- * One playout scene of an output (`playout[]`). The fields after `phase` arrived with the playout v2 player; a Core
- * from before it leaves them out, so they are optional.
+ * One playout scene of an output (`playout[]`), as the Output Player v2 reports it. The module supports only that
+ * player: an older one sends no `banks` or `on_air_items` (see {@link isPlayoutV2}).
  */
 export interface OutputPlayout {
 	scene: string
-	/** `standby`, `taking`, `on_air`, `returning`, `holding`, … */
+	/** `standby`, `taking`, `on_air`, `returning` or `holding`. */
 	phase: string
 	/** Held on air when it runs empty. */
-	hold?: boolean
-	on_empty?: string | null
-	interrupted_by?: string | null
-	on_air_items?: OnAirItem[]
-	banks?: PlayoutBank[]
+	hold: boolean
+	/** `auto_return` or `hold`. */
+	on_empty: string | null
+	interrupted_by: string | null
+	on_air_items: OnAirItem[]
+	banks: PlayoutBank[]
 	rundown: PlayoutRundown | null
+}
+
+/** True when every playout scene of the outputs has the Output Player v2 shape. */
+export function isPlayoutV2(outputs: OutputItem[]): boolean {
+	return outputs.every((o) => o.playout.every((p) => Array.isArray(p.banks) && Array.isArray(p.on_air_items)))
 }
 
 export interface OutputItem {
@@ -360,7 +366,7 @@ export function structureKey(model: CoreModel): string {
 		model.outputs.map((o) => [
 			o.output_id,
 			o.slot,
-			o.playout.map((p) => [p.scene, p.rundown?.key ?? null, (p.banks ?? []).map((b) => b.key)]),
+			o.playout.map((p) => [p.scene, p.rundown?.key ?? null, p.banks.map((b) => b.key)]),
 		]),
 		model.clients.map((c) => [c.type, c.hostname]),
 		model.cameras.map((c) => [c.id, c.name, c.number]),
@@ -425,7 +431,7 @@ export function findBank(output: OutputItem | undefined, bank: string, scene = '
 	if (output === undefined) return undefined
 	const scenes = scene !== '' ? output.playout.filter((p) => same(p.scene, scene)) : output.playout
 	for (const p of scenes) {
-		const found = (p.banks ?? []).find((b) => same(b.key, bank))
+		const found = p.banks.find((b) => same(b.key, bank))
 		if (found) return found
 	}
 	return undefined
@@ -441,7 +447,7 @@ export function isBankOnAir(playout: OutputPlayout | undefined, bank: string): b
 export function playoutWithBank(output: OutputItem | undefined, bank: string, scene = ''): OutputPlayout | undefined {
 	if (output === undefined) return undefined
 	if (scene !== '') return findPlayout(output, scene)
-	return output.playout.find((p) => (p.banks ?? []).some((b) => same(b.key, bank)))
+	return output.playout.find((p) => p.banks.some((b) => same(b.key, bank)))
 }
 
 /** How an output is addressed in routes and dropdowns: its slot key, else its id. */

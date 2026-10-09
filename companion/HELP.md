@@ -60,6 +60,8 @@ When a token is configured but the Core let Companion in another way (from the C
 
 Dropdowns list what the Core reports, and you can type a value instead: a signal identifier, a macro name, a camera number or name, a slot key, a variable name, or `<camera>/<angle>` for an angle.
 
+Output actions and feedbacks need the **Output Player v2**. An output of an older player is left out (the log says so once).
+
 Item addresses are the player's own: `bank/<bank>/<item>` for bank items and `rundown/<rundown>/<story>/<item>` for rundown items. The output variables show them.
 
 When an output has more than one playout scene, pick the **Playout scene** in output actions and feedbacks; with one, leave it on _(the only playout scene)_.

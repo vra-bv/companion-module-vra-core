@@ -191,7 +191,7 @@ export function buildVariableLayout(model: CoreModel, connection: () => Connecti
 			define(`${p}_rundown`, `${label}: active rundown`, (m) => read(m)?.rundown?.key ?? '')
 			define(`${p}_rundown_on_air`, `${label}: rundown item on air`, (m) => read(m)?.rundown?.on_air_item ?? '')
 			define(`${p}_rundown_next`, `${label}: rundown item next`, (m) => read(m)?.rundown?.next_item ?? '')
-			for (const bank of playout.banks ?? []) {
+			for (const bank of playout.banks) {
 				const b = `${p}_bank_${variableIdPart(bank.key)}`
 				const readBank = (m: CoreModel) => findBank(find(m), bank.key, playout.scene)
 				const next = define(`${b}_next`, `${label}: bank ${bank.key} next item`, (m) => readBank(m)?.next ?? '')

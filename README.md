@@ -11,7 +11,7 @@
 
 In the usual setup Companion runs on the Core machine: add a **VRA Core** connection and keep the defaults (`127.0.0.1`, no token). See [companion/HELP.md](./companion/HELP.md) for setup from another machine, and for every action, feedback, variable and preset. The API itself is documented at [docs.visualradioassist.live › Core control API](https://docs.visualradioassist.live/develop-with-vra/core-control-api).
 
-Requires Companion 5.0 or later and a Core with the Core API v2.
+Requires Companion 5.0 or later and a Core with the Core API v2. Outputs need the Output Player v2 (playout with banks and items); outputs of an older player are left out.
 
 ## How it works
 

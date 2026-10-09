@@ -20,6 +20,7 @@ All notable changes to this module are documented here. The format follows [Keep
 
 ### Removed
 
+- Support for outputs of an Output Player before v2: only the v2 playout payload (banks, items) is read; older outputs are left out with one log warning.
 - Output: play clip and take out all graphics. The Core with the playout v2 player replaced them with banks, items and playout take out all.
 
 - `docs/TESTING.md`: running the module in Companion 5 as a developer module, headless, against a real Core or the Core API over a fake runtime.

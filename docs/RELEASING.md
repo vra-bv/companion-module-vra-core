@@ -51,4 +51,4 @@ In Companion: **Modules → Import module package**, pick the file, then choose 
 
 - `@companion-module/base ~2.1` (module API 2.1): Companion **5.0 and later**. Bump the base only together with a minimum-Companion decision. API 2.2 exists, but raising the minimum shuts out studios on 5.0.
 - Runtime `node22`. Companion 5.0.7 also ships `node26`, which the template now uses; `node22` keeps every 5.0.x working.
-- The Core API v2 is required: a Core with `/api/v2` (server-core `feat/core-api-v2` or later). Output actions use the playout v2 routes (banks, items, playout).
+- The Core API v2 is required: a Core with `/api/v2` (server-core `feat/core-api-v2` or later). Outputs: only the Output Player v2 is supported (banks, items, playout routes and payload); an output of an older player is left out with one warning in the log.
