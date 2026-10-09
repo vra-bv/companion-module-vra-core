@@ -212,12 +212,12 @@ export function UpdatePresets(self: VraCoreInstance, layout: VariableLayout): vo
 			keywords: ['variable', variable.name],
 			style: style(short(display).toUpperCase(), '14'),
 			steps: [
-				{ down: [{ actionId: 'variable_control', options: { variable: variable.name, command: 'toggle' } }], up: [] },
+				{ down: [{ actionId: 'variable_control', options: { variable: variable.id, command: 'toggle' } }], up: [] },
 			],
 			feedbacks: [
 				{
 					feedbackId: 'variable_true',
-					options: { variable: variable.name },
+					options: { variable: variable.id },
 					style: { bgcolor: Colors.amber, color: Colors.black },
 				},
 			],

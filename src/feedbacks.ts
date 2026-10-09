@@ -189,7 +189,7 @@ export function UpdateFeedbacks(self: VraCoreInstance): void {
 					choices: variables,
 					default: firstId(variables),
 					allowCustom: true,
-					tooltip: 'Variable name or id',
+					tooltip: 'Variable id or name',
 				},
 				{ type: 'textinput', id: 'value', label: 'Value', default: '' },
 			],
@@ -213,7 +213,7 @@ export function UpdateFeedbacks(self: VraCoreInstance): void {
 					choices: booleanVariables,
 					default: firstId(booleanVariables),
 					allowCustom: true,
-					tooltip: 'Variable name or id',
+					tooltip: 'Variable id or name',
 				},
 			],
 			callback: (feedback) => {
