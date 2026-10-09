@@ -21,14 +21,14 @@ import {
 	type CompanionVariableValues,
 	type SomeCompanionConfigField,
 } from '@companion-module/base'
-import { CoreApiClient, type ApiResult, type Query } from './api.js'
+import { CoreApiClient, SLOW_CONTROL_ACK_TIMEOUT_MS, type ApiResult, type Query } from './api.js'
 import { UpdateActions, type ActionsSchema } from './actions.js'
-import { GetConfigFields, normaliseConfig, type ModuleConfig, type ModuleSecrets } from './config.js'
+import { configProblem, GetConfigFields, normaliseConfig, type ModuleConfig, type ModuleSecrets } from './config.js'
 import { UpdateFeedbacks, type FeedbacksSchema } from './feedbacks.js'
 import { UpdatePresets } from './presets.js'
-import { emptyModel, modelFromSnapshot, structureKey, type CoreModel } from './state.js'
+import { emptyModel, isPlayoutV2, modelFromSnapshot, structureKey, type CoreModel } from './state.js'
 import { UpgradeScripts } from './upgrades.js'
-import { buildVariableLayout, variableValues, type VariableLayout } from './variables.js'
+import { buildVariableLayout, variableValues, type ConnectionInfo, type VariableLayout } from './variables.js'
 
 export type ModuleSchema = {
 	config: ModuleConfig
@@ -44,6 +44,12 @@ export { UpgradeScripts }
 /** Retry interval while the Core is unreachable or refuses the device. */
 const RECONNECT_INTERVAL_MS = 5000
 
+/**
+ * How often camera angles and variable types are read again. The snapshot leaves them out, so an angle added to a
+ * camera that stayed would otherwise never reach the dropdowns and presets.
+ */
+const DETAILS_REFRESH_MS = 60_000
+
 export default class VraCoreInstance extends InstanceBase<ModuleSchema> {
 	/** The current config, defaults filled in. */
 	config: ModuleConfig = normaliseConfig(undefined)
@@ -52,9 +58,17 @@ export default class VraCoreInstance extends InstanceBase<ModuleSchema> {
 
 	#token: string | undefined
 	#client: CoreApiClient | null = null
-	#layout: VariableLayout = buildVariableLayout(emptyModel())
+	/** From the last successful `GET /api/v2`; null while not connected. */
+	#connection: ConnectionInfo | null = null
+	#layout: VariableLayout = buildVariableLayout(emptyModel(), () => null)
 	/** The structure the definitions were last built for; null forces a rebuild. */
 	#structure: string | null = null
+	/** When the camera angles and variable details were last read. */
+	#detailsAt = 0
+	/** True once an output with an Output Player before v2 was reported, so it is logged once. */
+	#warnedPlayout = false
+	/** The status text of the connection, kept to restore it after a passing failure. */
+	#okText = ''
 
 	/** Bumped on every (re)start; a loop step of an older generation stops. */
 	#generation = 0
@@ -102,7 +116,9 @@ export default class VraCoreInstance extends InstanceBase<ModuleSchema> {
 			return false
 		}
 
-		const result = await client.control(path, { ...query, station: this.config.station || undefined })
+		// Variable writes go through VRA Cloud and camera commands through Camera Assist: both may need longer.
+		const ackTimeout = /^\/(variables|cameras|angles)\//.test(path) ? SLOW_CONTROL_ACK_TIMEOUT_MS : undefined
+		const result = await client.control(path, { ...query, station: this.config.station || undefined }, ackTimeout)
 		if (result.ok) {
 			this.log('debug', `${label}: ok (${result.status})`)
 			this.#refreshSoon()
@@ -125,15 +141,17 @@ export default class VraCoreInstance extends InstanceBase<ModuleSchema> {
 		this.#stop()
 		this.#generation++
 		this.#connected = false
+		this.#connection = null
 		this.#lastFailure = null
 		if (this.model.rev !== null) {
 			this.#clearModel()
 			this.#publishState()
 		}
 
-		if (this.config.host === '') {
+		const problem = configProblem(this.config, this.#token)
+		if (problem !== null) {
 			this.#client = null
-			this.updateStatus(InstanceStatus.BadConfig, 'Set the Core address')
+			this.updateStatus(InstanceStatus.BadConfig, problem)
 			return
 		}
 
@@ -197,8 +215,25 @@ export default class VraCoreInstance extends InstanceBase<ModuleSchema> {
 			const who = principal ? `${principal.name} (${principal.access})` : 'connected'
 			this.#connected = true
 			this.#lastFailure = null
-			this.updateStatus(InstanceStatus.Ok, principal?.access === 'read' ? `${who}: read only` : who)
-			this.log('info', `Connected to ${client.baseUrl} as ${who}, Core ${result.body.version ?? 'unknown version'}`)
+			this.#connection = {
+				version: result.body.version,
+				principal: principal?.name ?? '',
+				access: principal?.access ?? '',
+			}
+			this.#okText = principal?.access === 'read' ? `${who}: read only` : who
+			this.updateStatus(InstanceStatus.Ok, this.#okText)
+			this.log('info', `Connected to ${client.baseUrl} as ${who}, Core ${result.body.version}`)
+			// The Core ignores the token from the Core machine itself, and lets an unknown token fall through to LAN
+			// access: say so, or a wrong token goes unnoticed until the module runs elsewhere.
+			if (this.#token !== undefined && principal !== null && principal.kind !== 'device') {
+				this.log(
+					'warn',
+					`The device token was not used: the Core let Companion in as ${principal.kind} (${principal.name}). ` +
+						(principal.kind === 'loopback'
+							? 'Calls from the Core machine itself need no token.'
+							: 'Check the token: an unknown token falls back to LAN access.'),
+				)
+			}
 			return
 		}
 
@@ -219,20 +254,32 @@ export default class VraCoreInstance extends InstanceBase<ModuleSchema> {
 
 		if (this.#lastFailure !== null) {
 			this.#lastFailure = null
-			this.updateStatus(InstanceStatus.Ok)
+			this.updateStatus(InstanceStatus.Ok, this.#okText)
 		}
 
 		const snapshot = result.body
-		if (snapshot.rev === this.model.rev) return
+		const detailsDue = Date.now() - this.#detailsAt > DETAILS_REFRESH_MS
+		if (snapshot.rev === this.model.rev && !detailsDue) return
 
 		const model = modelFromSnapshot(snapshot, this.model)
+		if (!isPlayoutV2(model.outputs)) {
+			// Only the Output Player v2 payload is supported; an older player's outputs are left out.
+			if (!this.#warnedPlayout)
+				this.log('warn', 'An output runs an Output Player before v2: its outputs are not supported and left out')
+			this.#warnedPlayout = true
+			model.outputs = model.outputs.filter((o) => isPlayoutV2([o]))
+		}
 		const structure = structureKey(model)
-		if (structure !== this.#structure) {
+		if (structure !== this.#structure || detailsDue) {
+			const before = detailsKey(model)
 			await this.#loadDetails(client, model)
 			if (generation !== this.#generation) return
 			this.model = model
-			this.#structure = structure
-			this.#defineAll()
+			if (structure !== this.#structure || detailsKey(model) !== before) {
+				// Only marked as built once the definitions are in: a builder that throws is retried on the next poll.
+				this.#defineAll()
+				this.#structure = structure
+			}
 		} else {
 			this.model = model
 		}
@@ -244,10 +291,11 @@ export default class VraCoreInstance extends InstanceBase<ModuleSchema> {
 	 * (BOOLEAN presets). A failure keeps the previous details; the definitions then fall back to what the snapshot has.
 	 */
 	async #loadDetails(client: CoreApiClient, model: CoreModel): Promise<void> {
+		this.#detailsAt = Date.now()
 		if (model.available.cameras) {
 			const cameras = await client.cameras()
 			if (cameras.ok) {
-				model.angles = new Map((cameras.body.items ?? []).map((c) => [c.id, c.angles ?? []]))
+				model.angles = new Map(listOf(cameras.body.items).map((c) => [c.id, listOf(c.angles)]))
 			} else {
 				this.log('debug', `camera angles not read: ${describeFailure(cameras)}`)
 			}
@@ -255,7 +303,7 @@ export default class VraCoreInstance extends InstanceBase<ModuleSchema> {
 		if (model.available.variables) {
 			const variables = await client.variables()
 			if (variables.ok) {
-				model.variableDetails = new Map((variables.body.items ?? []).map((v) => [v.id, v]))
+				model.variableDetails = new Map(listOf(variables.body.items).map((v) => [v.id, v]))
 			} else {
 				this.log('debug', `variable details not read: ${describeFailure(variables)}`)
 			}
@@ -281,6 +329,7 @@ export default class VraCoreInstance extends InstanceBase<ModuleSchema> {
 		const lost = status !== InstanceStatus.UnknownWarning
 		if (lost) {
 			this.#connected = false
+			this.#connection = null
 			// Do not keep showing tally or on-air state the module can no longer see.
 			if (this.model.rev !== null) {
 				this.#clearModel()
@@ -289,7 +338,7 @@ export default class VraCoreInstance extends InstanceBase<ModuleSchema> {
 		}
 
 		if (first) {
-			this.updateStatus(status, result.message)
+			this.updateStatus(status, statusMessage(result))
 			this.log(lost ? 'warn' : 'info', `${this.#client?.baseUrl ?? 'Core'}: ${text}`)
 		}
 	}
@@ -298,9 +347,15 @@ export default class VraCoreInstance extends InstanceBase<ModuleSchema> {
 
 	/** Rebuilds every definition from the current model. */
 	#defineAll(): void {
+		const m = this.model
+		this.log(
+			'info',
+			`Definitions rebuilt: ${m.signals.length} signals, ${m.macros.length} macros, ${m.cameras.length} cameras, ` +
+				`${m.outputs.length} outputs, ${m.variables.length} variables`,
+		)
 		UpdateActions(this)
 		UpdateFeedbacks(this)
-		this.#layout = buildVariableLayout(this.model)
+		this.#layout = buildVariableLayout(this.model, () => this.#connection)
 		this.setVariableDefinitions(this.#layout.definitions)
 		UpdatePresets(this, this.#layout)
 		this.setVariableValues(variableValues(this.model, this.#layout))
@@ -319,6 +374,28 @@ export default class VraCoreInstance extends InstanceBase<ModuleSchema> {
 	#clearModel(): void {
 		this.model = { ...emptyModel(), angles: this.model.angles, variableDetails: this.model.variableDetails }
 	}
+}
+
+/** What the definitions take from the detail reads: angle names, variable types and display names. */
+function detailsKey(model: CoreModel): string {
+	return JSON.stringify([
+		[...model.angles].map(([camera, angles]) => [camera, angles.map((a) => [a.id, a.name])]),
+		[...model.variableDetails].map(([id, d]) => [id, d.data_type, d.display_name]),
+	])
+}
+
+/** A list the Core should always send; anything else reads as empty. */
+function listOf<T>(value: T[] | null | undefined): T[] {
+	return Array.isArray(value) ? value : []
+}
+
+/** The status text for a failed probe or poll: what the user should check. */
+function statusMessage(result: Extract<ApiResult<unknown>, { ok: false }>): string {
+	if (result.status === 403 && result.error === 'feature_disabled')
+		return `${result.message} (Studio settings → Core API: switch on the API and the System feature)`
+	if (result.status === 403 && result.error === 'forbidden')
+		return `${result.message} (the device needs the System feature: Studio settings → Core API → Devices)`
+	return result.message
 }
 
 function describeFailure(result: Extract<ApiResult<unknown>, { ok: false }>): string {

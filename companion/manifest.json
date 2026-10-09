@@ -4,12 +4,16 @@
 	"id": "vra-core",
 	"name": "VRA Core",
 	"shortname": "VRA Core",
-	"description": "Control a Visual Radio Assist Core: studio on air, Core state, signals, macros, cameras, outputs and variables, with tally feedback",
-	"version": "0.1.0",
+	"description": "Control a Visual Radio Assist Core: studio on air, Core, signals, macros, cameras and angles, Output Player playout and station variables, with tally and status feedback",
+	"version": "1.0.0",
 	"license": "MIT",
 	"repository": "git+https://github.com/vra-bv/companion-module-vra-core.git",
 	"bugs": "https://github.com/vra-bv/companion-module-vra-core/issues",
 	"maintainers": [
+		{
+			"name": "Hidde Schultze",
+			"github": "hiddehs"
+		},
 		{
 			"name": "VRA B.V.",
 			"url": "https://visualradioassist.live"
@@ -23,7 +27,7 @@
 	},
 	"legacyIds": [],
 	"manufacturer": "Visual Radio Assist",
-	"products": ["VRA Core API"],
+	"products": ["VRA Core"],
 	"keywords": [
 		"VRA",
 		"Visual Radio Assist",
@@ -34,7 +38,12 @@
 		"on air",
 		"tally",
 		"camera",
+		"PTZ",
 		"macro",
-		"signals"
+		"signals",
+		"playout",
+		"rundown",
+		"graphics",
+		"output player"
 	]
 }
